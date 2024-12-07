@@ -5,7 +5,7 @@ import Notification from './Notification';
 function App() {
   return (
     <div className="App">
-      <h1>Refresh Notifier</h1>
+      <h1>틈틈이</h1>
       <Notification />
     </div>
   );
