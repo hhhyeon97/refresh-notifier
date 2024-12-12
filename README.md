@@ -5,7 +5,11 @@
 
 ### version
 
-`node -v : v22.12.0` <br> `npm -v : 10.8.0` <br> `react : 19`
+`node : 22.12.0` <br> `npm : 10.8.0` <br> `react : 19`
+
+### deploy
+
+`netlify`
 
 ### feature
 
