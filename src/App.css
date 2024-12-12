@@ -1,3 +1,33 @@
-body {
+@font-face {
+  font-family: 'Ownglyph_kimkonghae';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/2408@1.0/Ownglyph_kimkonghae.woff2')
+    format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+* {
   text-align: center;
+  font-family: 'Ownglyph_kimkonghae';
+}
+body {
+  margin-top: 100px;
+}
+.title {
+  margin-top: 70px;
+  font-size: 75px;
+  letter-spacing: 10px;
+}
+
+.wrap {
+  width: 60%;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+}
+
+.clock_icon {
+  position: relative;
+  bottom: 20px;
 }
