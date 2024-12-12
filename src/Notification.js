@@ -1,129 +1,111 @@
 import React, { useState, useEffect } from 'react';
+import { FaPlay, FaPause, FaRedo } from 'react-icons/fa'; // React Icons 추가
 
 const Notification = () => {
-  const [isStarted, setIsStarted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false); // 일시정지 상태
-  const [seconds, setSeconds] = useState(0); // 경과 시간 (초)
-  const [timerId, setTimerId] = useState(null); // 타이머 ID
-  const [selectedVoice, setSelectedVoice] = useState(null); // 사용자가 선택한 음성
-  const [voices, setVoices] = useState([]); // 음성 목록
-  const [selectedTime, setSelectedTime] = useState(3600); // 기본 시간 설정 (1시간)
-  const [isAlertTriggered, setIsAlertTriggered] = useState(false); // 알림 상태
+  const [timeLeft, setTimeLeft] = useState(60); // 기본 시간: 30분 (초 단위)
+  const [isRunning, setIsRunning] = useState(false); // 타이머 실행 여부
+  const [intervalId, setIntervalId] = useState(null); // setInterval ID 저장
 
-  // 음성 목록을 불러와서 상태에 저장
-  useEffect(() => {
-    const getVoices = () => {
-      const voicesList = window.speechSynthesis.getVoices();
-      setVoices(voicesList);
-    };
-
-    window.speechSynthesis.onvoiceschanged = getVoices;
-    getVoices(); // 초기 음성 목록 가져오기
-  }, []);
-
+  // 타이머 실행
   const startTimer = () => {
-    setIsStarted(true);
-    setIsPaused(false); // 시작 시 일시정지 해제
-    setIsAlertTriggered(false); // 알림 상태 초기화
-    if (!timerId) {
+    if (!isRunning) {
       const id = setInterval(() => {
-        setSeconds((prevSeconds) => prevSeconds + 1);
-      }, 1000); // 1초마다 증가
-      setTimerId(id);
+        setTimeLeft((prevTime) => Math.max(prevTime - 1, 0)); // 남은 시간을 1초씩 줄임
+      }, 1000);
+      setIntervalId(id); // Interval ID 저장
+      setIsRunning(true); // 타이머 상태 업데이트
     }
   };
 
+  // 타이머 일시정지
   const pauseTimer = () => {
-    setIsPaused(true);
-    clearInterval(timerId); // 타이머 멈추기
-    setTimerId(null);
-  };
-
-  const resetTimer = () => {
-    clearInterval(timerId); // 기존 타이머 정지
-    setIsStarted(false);
-    setIsPaused(false);
-    setSeconds(0); // 시간 초기화
-    setTimerId(null);
-    setIsAlertTriggered(false); // 알림 상태 초기화
-  };
-
-  // 알림 처리
-  useEffect(() => {
-    if (seconds === selectedTime && !isAlertTriggered) {
-      setIsAlertTriggered(true); // 알림 상태를 true로 설정
-      const messageText = '스트레칭 하셔요 ~';
-      const speech = new SpeechSynthesisUtterance(messageText);
-      speech.lang = 'ko-KR';
-      speech.rate = 1.0;
-
-      if (selectedVoice) {
-        speech.voice = selectedVoice;
-      }
-
-      window.speechSynthesis.speak(speech);
-      clearInterval(timerId); // 알림 후 타이머 정지
-      setTimerId(null);
+    if (isRunning) {
+      clearInterval(intervalId); // Interval 중지
+      setIsRunning(false); // 타이머 상태 업데이트
     }
-  }, [seconds, selectedVoice, selectedTime, isAlertTriggered]);
+  };
+
+  // 타이머 리셋
+  const resetTimer = () => {
+    clearInterval(intervalId); // Interval 중지
+    setIsRunning(false); // 타이머 상태 초기화
+    setTimeLeft(1800); // 시간 초기화 (30분)
+  };
+
+  // 시간 포맷 변환 (XX분 XX초)
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}분 ${String(
+      remainingSeconds,
+    ).padStart(2, '0')}초`;
+  };
+
+  // 컴포넌트가 언마운트되거나 타이머가 리셋되면 Interval 제거
+  useEffect(() => {
+    return () => clearInterval(intervalId);
+  }, [intervalId]);
 
   return (
-    <div>
-      <div>
-        {/* 시간 설정 */}
-        <label htmlFor="timeSelect">시간 설정: </label>
-        <select
-          id="timeSelect"
-          value={selectedTime}
-          onChange={(e) => setSelectedTime(Number(e.target.value))}
-          disabled={isStarted} // 타이머 시작 중에는 변경 불가
-        >
-          <option value={1800}>30분</option>
-          <option value={3600}>1시간</option>
-          <option value={7200}>2시간</option>
-        </select>
+    <div
+      style={{
+        textAlign: 'center',
+        fontFamily: 'Arial, sans-serif',
+        padding: '20px',
+      }}
+    >
+      <h1>⏰ 리프레시 타이머</h1>
+
+      {/* 남은 시간 표시 */}
+      <div
+        style={{
+          fontSize: '2rem',
+          margin: '20px 0',
+          fontWeight: 'bold',
+          color: isRunning ? '#4caf50' : '#f44336',
+        }}
+      >
+        {formatTime(timeLeft)}
       </div>
 
-      {/* 타이머 조작 버튼 */}
-      <button onClick={startTimer} disabled={isStarted && !isPaused}>
-        시작하기
-      </button>
-      <button onClick={pauseTimer} disabled={!isStarted || isPaused}>
-        일시정지
-      </button>
-      <button onClick={resetTimer}>타이머 리셋</button>
-
-      {/* 음성 선택 */}
-      <div>
-        <label htmlFor="voiceSelect">음성 선택: </label>
-        <select
-          id="voiceSelect"
-          onChange={(e) => {
-            const selected = voices.find(
-              (voice) => voice.name === e.target.value,
-            );
-            setSelectedVoice(selected);
-          }}
+      {/* 컨트롤 버튼 */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+        <button
+          onClick={startTimer}
+          style={buttonStyle}
+          title="시작"
+          disabled={isRunning} // 실행 중일 땐 비활성화
         >
-          <option value="">알림 보이스 선택</option>
-          {voices.map((voice, index) => (
-            <option key={index} value={voice.name}>
-              {voice.name}
-            </option>
-          ))}
-        </select>
+          <FaPlay size={20} />
+        </button>
+        <button
+          onClick={pauseTimer}
+          style={buttonStyle}
+          title="일시정지"
+          disabled={!isRunning} // 멈춰 있을 땐 비활성화
+        >
+          <FaPause size={20} />
+        </button>
+        <button onClick={resetTimer} style={buttonStyle} title="리셋">
+          <FaRedo size={20} />
+        </button>
       </div>
-
-      {isStarted && (
-        <div>
-          <p>경과 시간 : {seconds}초</p>
-        </div>
-      )}
-
-      {/* 알림 문구 표시 */}
-      {isAlertTriggered && <p>🤸‍♂️ 스트레칭 하자!</p>}
     </div>
   );
+};
+
+// 버튼 스타일 공통 정의
+const buttonStyle = {
+  padding: '10px',
+  borderRadius: '50%',
+  border: 'none',
+  backgroundColor: '#eeeeee',
+  cursor: 'pointer',
+  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'background-color 0.2s ease',
 };
 
 export default Notification;
