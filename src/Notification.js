@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 
 const Notification = () => {
   const [isStarted, setIsStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // 일시정지 상태
   const [seconds, setSeconds] = useState(0); // 경과 시간 (초)
   const [timerId, setTimerId] = useState(null); // 타이머 ID
   const [selectedVoice, setSelectedVoice] = useState(null); // 사용자가 선택한 음성
   const [voices, setVoices] = useState([]); // 음성 목록
+  const [selectedTime, setSelectedTime] = useState(3600); // 기본 시간 설정 (1시간)
+  const [isAlertTriggered, setIsAlertTriggered] = useState(false); // 알림 상태
 
   // 음성 목록을 불러와서 상태에 저장
   useEffect(() => {
@@ -14,51 +17,80 @@ const Notification = () => {
       setVoices(voicesList);
     };
 
-    // 음성 목록 로드 시 처리
     window.speechSynthesis.onvoiceschanged = getVoices;
-
-    // 초기 음성 목록을 가져오는 시점
-    getVoices();
+    getVoices(); // 초기 음성 목록 가져오기
   }, []);
 
   const startTimer = () => {
     setIsStarted(true);
-    setSeconds(0); // 타이머 시작 시초기화
-    const id = setInterval(() => {
-      setSeconds((prevSeconds) => prevSeconds + 1);
-    }, 1000); // 1초마다 경과 시간 업데이트
-    setTimerId(id);
+    setIsPaused(false); // 시작 시 일시정지 해제
+    setIsAlertTriggered(false); // 알림 상태 초기화
+    if (!timerId) {
+      const id = setInterval(() => {
+        setSeconds((prevSeconds) => prevSeconds + 1);
+      }, 1000); // 1초마다 증가
+      setTimerId(id);
+    }
   };
 
-  // 1시간 후에 음성 알림 (테스트로 5초)
-  useEffect(() => {
-    if (seconds === 5) {
-      // 5초가 경과하면 알림 시작
-      const messageText = '1시간이 지났습니다! 스트레칭 하셔요';
-      const speech = new SpeechSynthesisUtterance(messageText);
-      speech.lang = 'ko-KR'; // 한국어 설정
-      speech.rate = 1.0; // 음성 속도
+  const pauseTimer = () => {
+    setIsPaused(true);
+    clearInterval(timerId); // 타이머 멈추기
+    setTimerId(null);
+  };
 
-      // 사용자가 선택한 음성으로 설정
+  const resetTimer = () => {
+    clearInterval(timerId); // 기존 타이머 정지
+    setIsStarted(false);
+    setIsPaused(false);
+    setSeconds(0); // 시간 초기화
+    setTimerId(null);
+    setIsAlertTriggered(false); // 알림 상태 초기화
+  };
+
+  // 알림 처리
+  useEffect(() => {
+    if (seconds === selectedTime && !isAlertTriggered) {
+      setIsAlertTriggered(true); // 알림 상태를 true로 설정
+      const messageText = '스트레칭 하셔요 ~';
+      const speech = new SpeechSynthesisUtterance(messageText);
+      speech.lang = 'ko-KR';
+      speech.rate = 1.0;
+
       if (selectedVoice) {
         speech.voice = selectedVoice;
       }
 
       window.speechSynthesis.speak(speech);
-      clearInterval(timerId); // 타이머 멈추기
+      clearInterval(timerId); // 알림 후 타이머 정지
+      setTimerId(null);
     }
-  }, [seconds, selectedVoice, timerId]); // 경과 시간 변경 시마다 실행
-
-  // 타이머를 리셋하려면
-  const resetTimer = () => {
-    clearInterval(timerId); // 기존 타이머 정지
-    setIsStarted(false);
-    setSeconds(0); // 시간 초기화
-  };
+  }, [seconds, selectedVoice, selectedTime, isAlertTriggered]);
 
   return (
     <div>
-      <button onClick={startTimer}>시작하기 (1시간 후 음성 알림)</button>
+      <div>
+        {/* 시간 설정 */}
+        <label htmlFor="timeSelect">시간 설정: </label>
+        <select
+          id="timeSelect"
+          value={selectedTime}
+          onChange={(e) => setSelectedTime(Number(e.target.value))}
+          disabled={isStarted} // 타이머 시작 중에는 변경 불가
+        >
+          <option value={1800}>30분</option>
+          <option value={3600}>1시간</option>
+          <option value={7200}>2시간</option>
+        </select>
+      </div>
+
+      {/* 타이머 조작 버튼 */}
+      <button onClick={startTimer} disabled={isStarted && !isPaused}>
+        시작하기
+      </button>
+      <button onClick={pauseTimer} disabled={!isStarted || isPaused}>
+        일시정지
+      </button>
       <button onClick={resetTimer}>타이머 리셋</button>
 
       {/* 음성 선택 */}
@@ -84,11 +116,12 @@ const Notification = () => {
 
       {isStarted && (
         <div>
-          {/* // todo : 일시정지 추가 or 작업 시간 누적해서 보여줄 수 있는 */}
-          <p>타이머: {seconds}초</p> {/* 경과 시간 표시 */}
-          {seconds < 5 ? <p>⏰ 작업중...</p> : <p>🤸‍♂️ 스트레칭 하자</p>}
+          <p>경과 시간 : {seconds}초</p>
         </div>
       )}
+
+      {/* 알림 문구 표시 */}
+      {isAlertTriggered && <p>🤸‍♂️ 스트레칭 하자!</p>}
     </div>
   );
 };
