@@ -2,10 +2,44 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaRedo } from 'react-icons/fa'; // React Icons
 
 const Notification = () => {
-  const [duration, setDuration] = useState(30 * 60 * 1000); // 30분 (밀리초 단위)
-  const [deadline, setDeadline] = useState(null); // 타이머 종료 시간
-  const [timeLeft, setTimeLeft] = useState(duration); // 남은 시간
-  const [isRunning, setIsRunning] = useState(false); // 타이머 실행 여부
+  // 시간 옵션들
+  const timeOptions = [
+    { label: '30분', value: 30 * 60 * 1000 },
+    { label: '1시간', value: 60 * 60 * 1000 },
+    { label: '2시간', value: 120 * 60 * 1000 },
+  ];
+
+  const [duration, setDuration] = useState(timeOptions[0].value); // 기본값: 30분
+  const [deadline, setDeadline] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [isRunning, setIsRunning] = useState(false);
+  const [koreanVoice, setKoreanVoice] = useState(null);
+
+  // 음성 로드 및 선택 로직
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const googleKoreanVoice = voices.find(
+        (voice) =>
+          voice.name === 'Google 한국의' || voice.name === 'Google Korean',
+      );
+
+      if (googleKoreanVoice) {
+        setKoreanVoice(googleKoreanVoice);
+      }
+    };
+
+    // 음성이 즉시 로드되지 않을 수 있으므로 이벤트 리스너 추가
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+
+    // 처음 로드 시도
+    loadVoices();
+
+    // 클린업 함수
+    return () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    };
+  }, []);
 
   // 남은 시간 계산 및 업데이트
   useEffect(() => {
@@ -35,8 +69,7 @@ const Notification = () => {
     speech.lang = 'ko-KR';
     speech.rate = 1.0;
 
-    const voices = window.speechSynthesis.getVoices();
-    const koreanVoice = voices.find((voice) => voice.name === 'Google 한국의');
+    // 미리 선택된 한국어 음성 사용
     if (koreanVoice) {
       speech.voice = koreanVoice;
     }
@@ -65,8 +98,17 @@ const Notification = () => {
   const resetTimer = () => {
     setIsRunning(false);
     setDeadline(null);
-    setTimeLeft(30 * 60 * 1000); // 기본 시간으로 초기화 (30분)
-    setDuration(30 * 60 * 1000);
+    setTimeLeft(timeOptions[0].value);
+    setDuration(timeOptions[0].value);
+  };
+
+  // 시간 선택 핸들러
+  const handleTimeChange = (selectedDuration) => {
+    // 타이머가 실행 중이 아닐 때만 시간 변경 가능
+    if (!isRunning) {
+      setDuration(selectedDuration);
+      setTimeLeft(selectedDuration);
+    }
   };
 
   // 시간 포맷 변환 (XX분 XX초)
@@ -111,6 +153,32 @@ const Notification = () => {
           ></path>
         </g>
       </svg>
+      {/* 시간 선택 버튼 추가 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '20px',
+          marginBottom: '20px',
+        }}
+      >
+        {timeOptions.map((option) => (
+          <button
+            className="time_btn"
+            key={option.value}
+            onClick={() => handleTimeChange(option.value)}
+            style={{
+              ...buttonStyle,
+              backgroundColor:
+                duration === option.value ? '#4caf50' : '#eeeeee',
+              color: duration === option.value ? 'white' : 'black',
+            }}
+            disabled={isRunning}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       {/* 남은 시간 표시 */}
       <div
