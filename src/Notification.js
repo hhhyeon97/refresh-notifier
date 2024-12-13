@@ -2,90 +2,83 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaRedo } from 'react-icons/fa'; // React Icons
 
 const Notification = () => {
-  const [timeLeft, setTimeLeft] = useState(1800); // 기본 시간: 30분 (초 단위)
+  const [duration, setDuration] = useState(30 * 60 * 1000); // 30분 (밀리초 단위)
+  const [deadline, setDeadline] = useState(null); // 타이머 종료 시간
+  const [timeLeft, setTimeLeft] = useState(duration); // 남은 시간
   const [isRunning, setIsRunning] = useState(false); // 타이머 실행 여부
-  const [intervalId, setIntervalId] = useState(null); // setInterval ID 저장
-  const [isCompleted, setIsCompleted] = useState(false); // 타이머 완료 상태
-  const [googleKoreanVoice, setGoogleKoreanVoice] = useState(null); // Google 한국의 음성
 
-  // Google 한국의 목소리를 검색하여 상태 저장
+  // 남은 시간 계산 및 업데이트
   useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const koreanVoice = voices.find(
-        (voice) => voice.name === 'Google 한국의',
-      );
-      setGoogleKoreanVoice(koreanVoice || null);
+    if (!isRunning || !deadline) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const remaining = Math.max(deadline - now, 0);
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        setIsRunning(false);
+        notifyCompletion();
+      }
     };
 
-    // 음성 로드 시점에 따라 이벤트 핸들러 연결
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    loadVoices();
-  }, []);
+    updateTimer();
+    const intervalId = setInterval(updateTimer, 1000);
 
-  // 타이머 실행
+    return () => clearInterval(intervalId);
+  }, [isRunning, deadline]);
+
+  // 타이머 완료 시 음성 알림
+  const notifyCompletion = () => {
+    const messageText = '스트레칭 하셔요!';
+    const speech = new SpeechSynthesisUtterance(messageText);
+    speech.lang = 'ko-KR';
+    speech.rate = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const koreanVoice = voices.find((voice) => voice.name === 'Google 한국의');
+    if (koreanVoice) {
+      speech.voice = koreanVoice;
+    }
+
+    window.speechSynthesis.speak(speech);
+  };
+
+  // 타이머 시작
   const startTimer = () => {
     if (!isRunning) {
-      const id = setInterval(() => {
-        setTimeLeft((prevTime) => Math.max(prevTime - 1, 0)); // 남은 시간을 1초씩 줄임
-      }, 1000);
-      setIntervalId(id);
+      setDeadline(Date.now() + duration);
       setIsRunning(true);
-      setIsCompleted(false);
     }
   };
 
   // 타이머 일시정지
   const pauseTimer = () => {
     if (isRunning) {
-      clearInterval(intervalId);
+      setDuration(timeLeft);
+      setDeadline(null);
       setIsRunning(false);
     }
   };
 
   // 타이머 리셋
   const resetTimer = () => {
-    clearInterval(intervalId);
     setIsRunning(false);
-    setTimeLeft(1800); // 시간 초기화
-    setIsCompleted(false);
+    setDeadline(null);
+    setTimeLeft(30 * 60 * 1000); // 기본 시간으로 초기화 (30분)
+    setDuration(30 * 60 * 1000);
   };
 
   // 시간 포맷 변환 (XX분 XX초)
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${String(minutes).padStart(2, '0')}분 ${String(
-      remainingSeconds,
-    ).padStart(2, '0')}초`;
+  const formatTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}분 ${String(seconds).padStart(
+      2,
+      '0',
+    )}초`;
   };
-
-  // 타이머 완료 시 처리
-  useEffect(() => {
-    if (timeLeft === 0 && isRunning) {
-      clearInterval(intervalId);
-      setIsRunning(false);
-      setIsCompleted(true);
-
-      // 음성 알림
-      const messageText = '스트레칭 하셔요 ~';
-      const speech = new SpeechSynthesisUtterance(messageText);
-      speech.lang = 'ko-KR'; // 한국어 설정
-      speech.rate = 1.0; // 음성 속도
-
-      // Google 한국의 목소리가 있으면 설정
-      if (googleKoreanVoice) {
-        speech.voice = googleKoreanVoice;
-      }
-
-      window.speechSynthesis.speak(speech); // 음성 재생
-    }
-  }, [timeLeft, isRunning, intervalId, googleKoreanVoice]);
-
-  // 컴포넌트 언마운트 시 Interval 제거
-  useEffect(() => {
-    return () => clearInterval(intervalId);
-  }, [intervalId]);
 
   return (
     <div
@@ -118,6 +111,7 @@ const Notification = () => {
           ></path>
         </g>
       </svg>
+
       {/* 남은 시간 표시 */}
       <div
         className="timer"
